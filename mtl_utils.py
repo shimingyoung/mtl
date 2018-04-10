@@ -85,7 +85,7 @@ def gradient_log_loss(W, c, X, y):
     grad_c = sum(b)
     return grad_w, grad_c, func_val
 	
-def dirty_model_logistic(X, Y, maxIter = 200):
+def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     #input X: n x d x t array, where n is number of observations, d is the number of variables, t is the number of tasks
     #	   Y: n x 1 x t array
     #	   lambda_s: 1 x 1
@@ -99,11 +99,12 @@ def dirty_model_logistic(X, Y, maxIter = 200):
     # initialize
     B0 = np.zeros(d, n_task)
     S0 = np.zeros(d, n_task)
+    c = np.zeros(d, 1)
     obj_val = 0
     B = B0
     S = S0
     # reshape
-    X = np.reshape(X, n*n_task, d)
+    #X = np.reshape(X, n*n_task, d)
     Y = np.reshape(Y, n*n_task, 1)
     # convert X to block diagonal matrix
     #X = diagonalize(X)
@@ -116,8 +117,9 @@ def dirty_model_logistic(X, Y, maxIter = 200):
     L1norm = np.norm(X, ord='1')
     Linfnorm = np.norm(X, ord='inf')
     # calculate the upper bound of max eigenvalue of the hessian matrix
-    L = 2 * min(L1norm*L1norm, n_task*t*Linfnorm^2, d*t*L1norm^2, n_task*d*t^2*max())
+    L = 2 * min(L1norm*L1norm, n_task*n*Linfnorm^2, d*n_task*L1norm^2, n_task*n_task*d*n*np.amax(abs(X)))
     obj_val = 0
+    t_new = 0
 	
     # iterationapple = web.DataReader("AAPL", "yahoo", start, end)
     for i in range(0, maxIter):
@@ -126,11 +128,11 @@ def dirty_model_logistic(X, Y, maxIter = 200):
         t_old = t_new
         # calculate the gradient of log loss
         #grad_vec = 2 * (xtx * (np.respahe(Bn, -1, 'C') + np.reshape(Sn, -1, 'C')) - xty)
-        grad_vec = gradient_log_loss(W, c, X, y)
-        grad_mat = np.reshape(grad_vec, d, t)
+        grad_vec = gradient_log_loss(B+S, c, X, Y)
+        grad_mat = np.reshape(grad_vec, d, n)
 
-        B = proximal_L1_inf_norm(Bn - gradmat / L, lambda_b / L)
-        S = project_L1_ball(Sn - gradmat / L, lambda_s / L)
+        B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
+        S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
         obj_val = X.dot(B+S)
         # check termination condition
 
@@ -140,5 +142,5 @@ def dirty_model_logistic(X, Y, maxIter = 200):
         Bn = B + eta * (B - B_old)
         Sn = S + eta * (S - S_old)
         
-    return B, S
+    return B, S, c
 
