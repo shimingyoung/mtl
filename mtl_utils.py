@@ -5,6 +5,7 @@ Created on Mon Mar 26 12:28:02 2018
 @authors: Rajat Patel, Shiming Yang
 """
 #from numpy.linalg import norm
+from scipy.sparse import block_diag
 
 import numpy as np
 
@@ -84,7 +85,7 @@ def gradient_log_loss(W, c, X, y):
     grad_c = sum(b)
     return grad_w, grad_c, func_val
 	
-def dirty_model_logistic(n_task):
+def dirty_model_logistic(X, Y, maxIter = 200):
     #input X: n x d x t array, where n is number of observations, d is the number of variables, t is the number of tasks
     #	   Y: n x 1 x t array
     #	   lambda_s: 1 x 1
@@ -94,21 +95,22 @@ def dirty_model_logistic(n_task):
     #	    S: d x t array
     
     # A. Beck et al, A Fast Iterative Shrinkage-Thresholding Algorithm for Linear Inverse Problems
-	
+    n, d, n_task = X.shape
     # initialize
-    B0 = np.zeros(d, t)
-    S0 = np.zeros(d, t)
+    B0 = np.zeros(d, n_task)
+    S0 = np.zeros(d, n_task)
     obj_val = 0
     B = B0
     S = S0
     # reshape
-    X = np.reshape(X, x*t, d)
-    Y = np.reshape(Y, n_task*t, 1)
+    X = np.reshape(X, n*n_task, d)
+    Y = np.reshape(Y, n*n_task, 1)
     # convert X to block diagonal matrix
-    X = diagonalize(X)
+    #X = diagonalize(X)
+    X = block_diag(X) # block diagonalize X in sparse
     # Calculate 
-    xtx = np.matmul(np.transpose(X), X)
-    xty = np.transpose(X).dot(Y)
+    #xtx = np.matmul(np.transpose(X), X)
+    #xty = np.transpose(X).dot(Y)
     Bn = B
     Sn = S
     L1norm = np.norm(X, ord='1')
