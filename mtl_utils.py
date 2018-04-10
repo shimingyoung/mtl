@@ -4,7 +4,7 @@ Created on Mon Mar 26 12:28:02 2018
 
 @authors: Rajat Patel, Shiming Yang
 """
-#from numpy.linalg import norm
+from numpy.linalg import norm
 from scipy.sparse import block_diag
 
 import numpy as np
@@ -86,11 +86,12 @@ def gradient_log_loss(W, c, X, y):
     return grad_w, grad_c, func_val
 	
 def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
-    #input X: n x d x t array, where n is number of observations, d is the number of variables, t is the number of tasks
+    #input X: tuple of n x d arrays, with n_task elements.
+    #where n is number of observations, d is the number of variables, n_task is the number of tasks
     #	   Y: n x 1 x t array
     #	   lambda_s: 1 x 1
     #	   lambda_b: 1 x 1
-    #output Theta: d x t array
+    #output
     #	    B: d x t array
     #	    S: d x t array
     
@@ -101,6 +102,8 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     S0 = np.zeros(d, n_task)
     c = np.zeros(d, 1)
     obj_val = 0
+    obj_val_old = 0
+    tol = 1e-8
     B = B0
     S = S0
     # reshape
@@ -114,11 +117,10 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     #xty = np.transpose(X).dot(Y)
     Bn = B
     Sn = S
-    L1norm = np.norm(X, ord='1')
-    Linfnorm = np.norm(X, ord='inf')
+    L1norm = norm(X, ord='1')
+    Linfnorm = norm(X, ord='inf')
     # calculate the upper bound of max eigenvalue of the hessian matrix
     L = 2 * min(L1norm*L1norm, n_task*n*Linfnorm^2, d*n_task*L1norm^2, n_task*n_task*d*n*np.amax(abs(X)))
-    obj_val = 0
     t_new = 0
 	
     
@@ -126,16 +128,20 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
         B_old = B
         S_old = S
         t_old = t_new
+        obj_val_old = obj_val
         # calculate the gradient of log loss
         #grad_vec = 2 * (xtx * (np.respahe(Bn, -1, 'C') + np.reshape(Sn, -1, 'C')) - xty)
         grad_vec, grad_c, func_val = gradient_log_loss(B+S, c, X, Y)
         grad_mat = np.reshape(grad_vec, d, n)
+        
+        # check termination condition
+        if (i>=5 and abs(obj_val - obj_val_old) <= tol) or i >= maxIter:
+            break
 
         B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
         S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
-        obj_val = X.dot(B+S)
-        # check termination condition
-
+        #obj_val = X.dot(B+S)
+        
         # update with stepsize
         t_new = (1 + np.sqrt(1 + 4 * t_old^2)) / 2
         eta = (t_old - 1) / t_new
