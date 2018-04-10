@@ -94,6 +94,7 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     #output
     #	    B: d x t array
     #	    S: d x t array
+    #      c: 1 x t array
     
     # A. Beck et al, A Fast Iterative Shrinkage-Thresholding Algorithm for Linear Inverse Problems
     n, d, n_task = X.shape
@@ -131,7 +132,7 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
         obj_val_old = obj_val
         # calculate the gradient of log loss
         #grad_vec = 2 * (xtx * (np.respahe(Bn, -1, 'C') + np.reshape(Sn, -1, 'C')) - xty)
-        grad_vec, grad_c, func_val = gradient_log_loss(B+S, c, X, Y)
+        grad_vec, grad_c, obj_val = gradient_log_loss(B+S, c, X, Y)
         grad_mat = np.reshape(grad_vec, d, n)
         
         # check termination condition
@@ -140,6 +141,7 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
 
         B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
         S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
+        c = c - grad_c / L
         #obj_val = X.dot(B+S)
         
         # update with stepsize
@@ -147,6 +149,7 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
         eta = (t_old - 1) / t_new
         Bn = B + eta * (B - B_old)
         Sn = S + eta * (S - S_old)
+        
         
     return B, S, c
 
