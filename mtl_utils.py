@@ -5,6 +5,7 @@ Created on Mon Mar 26 12:28:02 2018
 @authors: Rajat Patel, Shiming Yang
 """
 from numpy.linalg import norm
+from numpy.linalg import svd
 from scipy.sparse import block_diag
 
 import numpy as np
@@ -71,6 +72,21 @@ def proximal_L1_inf_norm(D, tau):
         x[j, locs] = D[j, locs] + theta
 
     return D - x
+
+def proximal_trace_norm(D, tau):
+    # trace norm, or for low rank regulation
+    # Liu, Ji, Ye 2009, Multi-Task Feature Learning Via Efficient L_{2,1}-Norm Minimization
+    m, n= np.shape(D)
+    if (m > n):
+        U, S, V = svd(D)
+    else:
+        U, S, V = svd(np.transpose(D))
+        
+    thres = np.diagonal(S) - tau * 0.5
+    diag_S = thres * (thres > 0)
+    D_p = np.matmul(np.matmul(U, np.diagflat(diag_S)), np.transpose(V))
+    trace_D = sum(diag_S)
+    return D_p, trace_D
 
 def gradient_log_loss(W, c, X, y):
     # W coef, d by 1, c 1 by 1, X n by d, y n by 1
