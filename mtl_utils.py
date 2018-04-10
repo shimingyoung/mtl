@@ -121,14 +121,14 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     obj_val = 0
     t_new = 0
 	
-    # iterationapple = web.DataReader("AAPL", "yahoo", start, end)
+    
     for i in range(0, maxIter):
         B_old = B
         S_old = S
         t_old = t_new
         # calculate the gradient of log loss
         #grad_vec = 2 * (xtx * (np.respahe(Bn, -1, 'C') + np.reshape(Sn, -1, 'C')) - xty)
-        grad_vec = gradient_log_loss(B+S, c, X, Y)
+        grad_vec, grad_c, func_val = gradient_log_loss(B+S, c, X, Y)
         grad_mat = np.reshape(grad_vec, d, n)
 
         B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
