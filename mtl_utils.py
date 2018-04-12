@@ -137,6 +137,7 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     L1norm = norm(X, ord='1')
     Linfnorm = norm(X, ord='inf')
     # calculate the upper bound of max eigenvalue of the hessian matrix
+    # refer to C.L. Byrne, 'Iterative Optimization in Inverse Problems', Section 9.5
     L = 2 * min(L1norm*L1norm, n_task*n*Linfnorm^2, d*n_task*L1norm^2, n_task*n_task*d*n*np.amax(abs(X)))
     t_new = 0
 	
