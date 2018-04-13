@@ -138,6 +138,12 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     Linfnorm = norm(X, ord='inf')
     # calculate the upper bound of max eigenvalue of the hessian matrix
     # refer to C.L. Byrne, 'Iterative Optimization in Inverse Problems', Section 9.5
+    # also review the Taylor expansion, function f(x) near the point x_k, can be approximated by
+    # f(x) \approx= f(x_k) + f'(x_k) * (x-x_k) + f''(x_k) * (x - x_k)^2 / 2! + ...
+    # in a inner product way, it can be written as
+    # f(x) \approx= f(x_k) + <f'(x_k), x-x_k> + L/2! * ||x-x_k||_2^2
+    # the f''(x_k), a.k.a. the hessian matrix, is difficult to calculate in high dimension. So need to find an easy estimation,
+    # e.g its upper bound
     L = 2 * min(L1norm*L1norm, n_task*n*Linfnorm^2, d*n_task*L1norm^2, n_task*n_task*d*n*np.amax(abs(X)))
     t_new = 0
 	
