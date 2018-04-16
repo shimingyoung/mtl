@@ -101,8 +101,9 @@ def gradient_log_loss(W, c, X, y):
     grad_c = sum(b)
     return grad_w, grad_c, func_val
 	
-def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
+def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200, opt=opt):
     #input X: tuple of n x d arrays, with n_task elements.
+    #opt is a dict that stores the parameters and their default values
     #where n is number of observations, d is the number of variables, n_task is the number of tasks
     #	   Y: n x 1 x t array
     #	   lambda_s: 1 x 1
@@ -112,7 +113,10 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     #	    S: d x t array
     #      c: 1 x t array
     
-    # A. Beck et al, A Fast Iterative Shrinkage-Thresholding Algorithm for Linear Inverse Problems
+    # Solvers (choose one):
+    # FISTA: A. Beck et al, A Fast Iterative Shrinkage-Thresholding Algorithm for Linear Inverse Problems
+    # ADMM: S. Boyd, Proximal Algorithms (p155); or S. Boyd, Distributed Optimization and Statistical Learning via ADMM
+    # Fast ADMM: T. Goldstein et al, Fast Alternating Direction Optimization Methods
     n, d, n_task = X.shape
     # initialize
     B0 = np.zeros(d, n_task)
@@ -147,32 +151,47 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200):
     L = 2 * min(L1norm*L1norm, n_task*n*Linfnorm^2, d*n_task*L1norm^2, n_task*n_task*d*n*np.amax(abs(X)))
     t_new = 0
 	
+    if opt.solver == 'fista':
+        # FISTA
+        for i in range(0, maxIter):
+            B_old = B
+            S_old = S
+            t_old = t_new
+            obj_val_old = obj_val
+            # calculate the gradient of log loss
+            #grad_vec = 2 * (xtx * (np.respahe(Bn, -1, 'C') + np.reshape(Sn, -1, 'C')) - xty)
+            grad_vec, grad_c, obj_val = gradient_log_loss(B+S, c, X, Y)
+            grad_mat = np.reshape(grad_vec, d, n)
+            
+            # check termination condition
+            if (i>=5 and abs(obj_val - obj_val_old) <= tol) or i >= maxIter:
+                break
     
-    for i in range(0, maxIter):
-        B_old = B
-        S_old = S
-        t_old = t_new
-        obj_val_old = obj_val
-        # calculate the gradient of log loss
-        #grad_vec = 2 * (xtx * (np.respahe(Bn, -1, 'C') + np.reshape(Sn, -1, 'C')) - xty)
-        grad_vec, grad_c, obj_val = gradient_log_loss(B+S, c, X, Y)
-        grad_mat = np.reshape(grad_vec, d, n)
+            B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
+            S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
+            c = c - grad_c / L
+            #obj_val = X.dot(B+S)
+            
+            # update with stepsize
+            t_new = (1 + np.sqrt(1 + 4 * t_old^2)) / 2
+            eta = (t_old - 1) / t_new
+            Bn = B + eta * (B - B_old)
+            Sn = S + eta * (S - S_old)
+            
+            
+        return B, S, c
+    elif opt.solver == 'admm':
+        for i in range(0, maxIter):
+            # TODO
+            
+        return B, S, c
+    elif opt.solver == 'fadmm':
+        for i in range(0, maxIter):
+            #TODO
+            
+        return B, S, c
+    else:
+        print("Not a supported solver name.")
+        # raise error here.
         
-        # check termination condition
-        if (i>=5 and abs(obj_val - obj_val_old) <= tol) or i >= maxIter:
-            break
-
-        B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
-        S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
-        c = c - grad_c / L
-        #obj_val = X.dot(B+S)
-        
-        # update with stepsize
-        t_new = (1 + np.sqrt(1 + 4 * t_old^2)) / 2
-        eta = (t_old - 1) / t_new
-        Bn = B + eta * (B - B_old)
-        Sn = S + eta * (S - S_old)
-        
-        
-    return B, S, c
 
