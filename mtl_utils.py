@@ -184,6 +184,7 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200, opt=opt):
         for i in range(0, maxIter):
             # TODO
             
+            
         return B, S, c
     elif opt.solver == 'fadmm':
         for i in range(0, maxIter):
