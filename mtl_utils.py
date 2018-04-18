@@ -138,8 +138,7 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200, opt=opt):
     #xty = np.transpose(X).dot(Y)
     Bn = B
     Sn = S
-    L1norm = norm(X, ord='1')
-    Linfnorm = norm(X, ord='inf')
+    
     # calculate the upper bound of max eigenvalue of the hessian matrix
     # refer to C.L. Byrne, 'Iterative Optimization in Inverse Problems', Section 9.5
     # also review the Taylor expansion, function f(x) near the point x_k, can be approximated by
@@ -148,11 +147,19 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200, opt=opt):
     # f(x) \approx= f(x_k) + <f'(x_k), x-x_k> + L/2! * ||x-x_k||_2^2
     # the f''(x_k), a.k.a. the hessian matrix, is difficult to calculate in high dimension. So need to find an easy estimation,
     # e.g its upper bound
-    L = 2 * min(L1norm*L1norm, n_task*n*Linfnorm^2, d*n_task*L1norm^2, n_task*n_task*d*n*np.amax(abs(X)))
+    
     t_new = 0
 	
     if opt.solver == 'fista':
-        # FISTA
+        # FISTA with constant stepsie (L) or with back tracking using line search
+        L1norm = norm(X, ord='1')
+        Linfnorm = norm(X, ord='inf')
+        
+        if opt.backtracking:
+            L = 2 * max(L1norm^2/(d*n_task), Linfnorm^2/(n_task*n))
+        else:
+            L = 2 * min(L1norm*L1norm, n_task*n*Linfnorm^2, d*n_task*L1norm^2, n_task*n_task*d*n*np.amax(abs(X)))
+        
         for i in range(0, maxIter):
             B_old = B
             S_old = S
@@ -166,9 +173,12 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200, opt=opt):
             # check termination condition
             if (i>=5 and abs(obj_val - obj_val_old) <= tol) or i >= maxIter:
                 break
-    
-            B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
-            S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
+            if opt.backtracking:
+                B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
+                S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
+            else:
+                B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
+                S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
             c = c - grad_c / L
             #obj_val = X.dot(B+S)
             
