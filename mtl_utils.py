@@ -174,8 +174,19 @@ def dirty_model_logistic(X, Y, lambda_b, lambda_s, maxIter = 200, opt=opt):
             if (i>=5 and abs(obj_val - obj_val_old) <= tol) or i >= maxIter:
                 break
             if opt.backtracking:
-                B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
-                S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
+                # backtracking
+                # compare F(x) to its quadratic approximation Q(x) at a given point
+                # see Beck's eq 2.5 and alg on pp194.
+                for bt_iter in range(0, 15):
+                    B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
+                    S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
+                    dB = B - Bn
+                    dS = S = Sn
+                    diff = 2 * np.matmul(np.transpose(dB+dS), grad_mat) - L * norm(dB+dS,'fro')**2
+                    if diff <= 0:
+                        break
+                    else:
+                        L = 2 * L
             else:
                 B = proximal_L1_inf_norm(Bn - grad_mat / L, lambda_b / L)
                 S = project_L1_ball(Sn - grad_mat / L, lambda_s / L)
