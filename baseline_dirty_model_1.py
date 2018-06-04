@@ -102,7 +102,7 @@ def logistic_regression(y_label, activation, N):
 	return(loss)
 
 
-def gradient_logistic_function(activation):
+def gradient_logistic_function(activation, X_train, y_train):
 	return(np.dot(np.transpose(X_train), activation - y_train))
 
 def precision(y_true, activation):
@@ -149,15 +149,6 @@ def predict(S,X_test):
         activation[i] = sigmoid_activation(hypothesis)
     return(activation)
 
-def project_L1_ball(D, tau): #TODO verify
-    # min (1/2) ||X-C||_2^2, s.t. ||X||_1 <= t
-    q = np.sign(D)
-#    print(q)
-    a = np.zeros((D.shape[0], D.shape[1]))
-    for i in range(len(D)):
-        for j in range(D.shape[1]):
-            a[i][j] = np.maximum(0, (abs(D[i][j])-tau))
-    return np.multiply(a,q)
 
 def project_L1_ball(D, tau): #TODO verify
     # min (1/2) ||X-C||_2^2, s.t. ||X||_1 <= t
@@ -169,6 +160,42 @@ def project_L1_ball(D, tau): #TODO verify
             a[i][j] = np.maximum(0, (abs(D[i][j])-tau))
     return np.multiply(a,q)
 
+
+
+
+
+def condition_check(f_x, f_x_1):
+	if f_x <= f_x_1:
+		return(True)
+	else:
+		return(False)
+
+
+def second_order_expansion(loss_old , weight,  weight_old, gradient_old, L):
+	a = loss_old
+	b = np.multiply((weight - weight_old), gradient_old)
+	c = norm_11(prox_weight_old)
+	d = L/2*np.linalg.norm(weight, weight_old, 'l2')
+	return(a+b+c+d)
+
+def first_condition(weight_old, X_train, y_train):
+	for i in range(len(X_train)):
+		hypothesis = np.dot(np.transpose(weight_old), X_train[i])
+		activation = sigmoid_activation(hypothesis)
+	loss = log_loss(y_train, activation) + norm_11(weight_old)
+	gradient_updated = gradient_logistic_function(activation, X_train, y_train)
+	return(loss, gradient_updated)
+
+
+
+
+# def Lipschitz_constant(gradient_n, gradient_n_1, weight, weight_old):
+# 	A = np.linalg.norm(gradient_n, gradient_n_1)
+# 	B = np.linalg.norm(weight - weight_old)
+# 	L = A/B
+# 	return(L)
+
+# def fista(gradient_1, gradient_0, eta, t, L, )
 
 test_data, feature_data, test_label_1 = test_label(input_data)
 X = np.array(feature_data)
@@ -180,42 +207,97 @@ X = normalize(X, norm='l2', axis =1, copy=True, return_norm=False)
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, random_state = 43)
 print(X_train.shape)
 N = len(X_train)
-lambda_1 = 0.01
+lambda_1 = 0.1
 lambda_2 = 0.01
-L = 0.11
-eta = 0.002
-eta_old = 0.002
+L_0 = 0.11
+t = 1/L_0
+eta = 3
+eta_old = 0.02
+loss = 0
 S = np.random.normal(0,1,(X_train.shape[1], y_train.shape[1]))
 print(S.shape)
 #B = np.random.normal(0,1,(X_train.shape[1], y_train.shape[1]))
 activation = np.zeros((y_train.shape[0], y_train.shape[1]))
 total_loss = 0
-max_iteration = 15
+max_iteration = 20
+gradient_old = np.zeros((X_train.shape[1], y_train.shape[1]))
 for j in range(max_iteration):
-	for i in range(len(X_train)):
-		# print(X_train[i].shape)
-		# print(S.shape)
-		hypothesis = np.dot((np.transpose(S)), X_train[i])
-		activation[i] = sigmoid_activation(hypothesis)
-	log_loss_1 = log_loss(y_train, activation)
+	for p in range(len(X_train)):
+		hypothesis = np.dot((np.transpose(S)), X_train[p])
+		activation[p] = sigmoid_activation(hypothesis)
+	log_loss_1 = log_loss(y_train, hypothesis)
+	loss_old = loss
 	loss = log_loss_1 + lambda_1*norm_11(S)
-	print(loss)
-	gradient_1 = gradient_logistic_function(activation)
-	# print(gradient_1.shape)
-	eta = (eta/eta_old)*i
-	S_old = S - eta*gradient_1
-	eta = (eta/eta_old)*i
-	# print(S_old.shape)
-	# print(S.shape)
-	S = project_L1_ball(S_old, lambda_1/L)
-	# print(S.shape)
+	loss_list.append(loss)
+	gradient_new = gradient_logistic_function(activation, X_train, y_train)
+	if loss_old == loss:
+		break
+	for i in range(16):
+		if i == 0:
+			L_new = eta**i*L_0
+		else:
+			L_new = eta**i*L_old
+		S_bt = project_L1_ball(S - t*gradient_new, lambda_1*t)
+		S_updated = S_bt - S
+		a, gradient_old = first_condition(S_new, X_train, y_train)
+		if i == 0:
+			gradient_1 = gradient_new
+		else:
+			gradient_1 = gradient_old
+		b = second_order_expansion(a, S_updated, S, gradient_1, L_new)
+		if a not <= b:
+			break
+		else:
+			S = S_updated
+		t = 1/L_new
 
-output_activation = predict(S, X_test)
-precision_score_list = precision(y_test, output_activation)
-print(precision_score_list)
-recall_score_list = recall(y_test, output_activation)
-print(recall_score_list)
-roc_auc_score_list = roc_auc_score_1(y_test, output_activation)
-print(roc_auc_score_list)
-roc_curve_list = roc_1(y_test, output_activation)
+	t_new = (1 + np.sqrt(1 + 4 *(t**2)))/2
+	eta = (t-1)/t_old
+	if j == 0:
+		S_old = 0
+	else:
+		S = S_updated + eta*(S_updated - S_old)
+	S_old = S_updated	
+			
+
+
+
+
+	
+
+
+
+
+
+
+
+
+# for j in range(max_iteration):
+# 	for i in range(len(X_train)):
+# 		# print(X_train[i].shape)
+# 		# print(S.shape)
+# 		hypothesis = np.dot((np.transpose(S)), X_train[i])
+# 		activation[i] = sigmoid_activation(hypothesis)
+# 	log_loss_1 = log_loss(y_train, activation)
+# 	loss_old = loss
+# 	loss = log_loss_1 + lambda_1*norm_11(S)
+# 	if loss_old == loss:
+# 		break
+# 	print(loss)
+# 	gradient_1 = gradient_logistic_function(activation)
+# 	# print(gradient_1.shape)
+# 	S_old = S - eta*gradient_1
+# 	eta = (eta/eta_old)*i
+# 	# print(S_old.shape)
+# 	# print(S.shape)
+# 	S = project_L1_ball(S_old, lambda_1/L)
+# 	# print(S.shape)
+# output_activation = predict(S, X_test)
+# precision_score_list = precision(y_test, output_activation)
+# print(precision_score_list)
+# recall_score_list = recall(y_test, output_activation)
+# print(recall_score_list)
+# roc_auc_score_list = roc_auc_score_1(y_test, output_activation)
+# print(roc_auc_score_list)
+# roc_curve_list = roc_1(y_test, output_activation)
 
