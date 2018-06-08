@@ -55,7 +55,7 @@ def proximal_L1_inf_norm(D, tau):
         theta = 0
         while (abs(s[j] - tau - gnum*theta) > tol):
             theta = (s - tau) / gnum
-            s = 0
+            s[j] = 0
             rho = 0
             for i in range(0, gnum):
                 if (x[i*m+j] >= theta):
