@@ -1,5 +1,8 @@
 # mtl
 multitask learning
+
+09/13/2018 Added projection operators for L1_inf, L1, L21, trace
+
 # TODO
-complete the function 'dirty_model_logistic'.
-review the existing functions' correctness.
+FISTA, ADMM
+MTL models: lasso, joint feature selection, dirty model, temporal correlated tasks, multi-source, etc.
